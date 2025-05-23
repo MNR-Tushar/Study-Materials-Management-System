@@ -1,8 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
-from dotenv import load_dotenv
-load_dotenv()
+
 
 app = Flask(__name__)
 
