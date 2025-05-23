@@ -3,16 +3,17 @@ from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
 
 
-app = Flask(_name_, static_folder='static', template_folder='templates')
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # MySQL Connection Setup
 def get_db_connection():
     connection = mysql.connector.connect(
-        host=os.environ.get("MYSQLHOST"),
-        user=os.environ.get("MYSQLUSER"),
-        port=os.environ.get("MYSQLPORT"),
-        password=os.environ.get("MYSQLPASSWORD"),
-        database=os.environ.get("MYSQLDATABASE")
+        host=os.getenv('MYSQLHOST'),
+        user=os.getenv('MYSQLUSER'),
+        password=os.getenv('MYSQLPASSWORD'),
+        port=os.getenv('MYSQLPORT'),
+        database=os.getenv('MYSQLDATABASE')
+
     )
     return connection
 
