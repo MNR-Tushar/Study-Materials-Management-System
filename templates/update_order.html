@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Update Order</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <div class="card shadow-lg p-4 rounded">
+        <h3 class="text-center mb-4">Update Order</h3>
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Customer ID</label>
+                <input type="text" name="customer_id" class="form-control" value="{{ order.customer_id }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Customer Name</label>
+                <input type="text" name="customer_name" class="form-control" value="{{ order.customer_name }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Material</label>
+                <select name="material_id" class="form-select" id="materialSelect" required>
+                    {% for material in materials %}
+                        <option value="{{ material.material_id }}"
+                            data-price="{{ material.price }}"
+                            data-discount="{{ material.discount }}"
+                            {% if material.material_id == order.material_id %} selected {% endif %}>
+                            {{ material.name }} - {{ material.category }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Quantity</label>
+                <input type="number" name="quantity" id="quantityInput" class="form-control" value="{{ order.quantity }}" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Total Price</label>
+                <input type="number" name="total_price" id="priceInput" class="form-control" value="{{ order.total_price }}" step="0.01" required readonly>
+            </div>
+            <div class="d-flex justify-content-between">
+                <a href="/all_orders" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-success">Update Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JavaScript to auto-calculate total price -->
+<script>
+    const materialSelect = document.getElementById('materialSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    const priceInput = document.getElementById('priceInput');
+
+    function calculateTotal() {
+        const selectedOption = materialSelect.options[materialSelect.selectedIndex];
+        const unitPrice = parseFloat(selectedOption.dataset.price) || 0;
+        const discount = parseFloat(selectedOption.dataset.discount) || 0;
+        const quantity = parseInt(quantityInput.value) || 1;
+
+        const discountedPrice = unitPrice - (unitPrice * (discount / 100));
+        const total = discountedPrice * quantity;
+
+        priceInput.value = total.toFixed(2);
+    }
+
+    materialSelect.addEventListener('change', calculateTotal);
+    quantityInput.addEventListener('input', calculateTotal);
+
+    // Initial call
+    calculateTotal();
+</script>
+</body>
+</html>
