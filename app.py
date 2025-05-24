@@ -33,6 +33,18 @@ def login_required(f):
     return decorated_function
 
 
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_admin'):
+            flash('Admin access required!', 'danger')
+            return redirect('/')
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -41,54 +53,47 @@ def login():
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
         cursor.close()
         conn.close()
 
         if user and check_password_hash(user['password'], password):
+            session['id'] = user['id']
             session['username'] = user['username']
-            flash('Login successful!', 'success')
+            session['is_admin'] = user['is_admin']  # store admin status
+            flash('Logged in successfully!', 'success')
             return redirect('/')
         else:
-            flash('Invalid username or password.', 'danger')
-            return redirect('/login')
-
+            flash('Invalid username or password!', 'danger')
     return render_template('login.html')
 
 
 
-@app.route('/register', methods=['GET', 'POST'])
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        hashed_password = generate_password_hash(password)
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Check if username already exists
+        cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         existing_user = cursor.fetchone()
 
         if existing_user:
-            flash('Username already exists. Choose a different one.', 'danger')
-            return redirect('/register')
+            flash("Username already exists. Please choose another.", "danger")
+            return redirect("/register")
 
-        # Hash password
-        hashed_password = generate_password_hash(password)
+        cursor.execute("INSERT INTO users (username, password, is_admin) VALUES (%s, %s, %s)", 
+                       (username, hashed_password, False))
+        db.commit()
+        flash("Registration successful. Please login.", "success")
+        return redirect("/login")
 
-        # Insert new user
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
-        conn.commit()
-        cursor.close()
-        conn.close()
+    return render_template("register.html")
 
-        flash('Registration successful! Please login.', 'success')
-        return redirect('/login')
-
-    return render_template('register.html')
 
 
 
@@ -115,7 +120,7 @@ def index():
 
 #Add Material
 @app.route('/add_material', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def add_material():
     if request.method == 'POST':
         name = request.form['name']
@@ -142,7 +147,7 @@ def add_material():
 
 #Update Material
 @app.route('/update_material/<int:material_id>', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def update_material(material_id):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -174,8 +179,8 @@ def update_material(material_id):
 
 
 #Delete Material
-@app.route('/delete_material/<int:material_id>')
-@login_required
+@app.route('/update_material/<int:material_id>', methods=['GET', 'POST'])
+@admin_required
 def delete_material(material_id):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -187,7 +192,7 @@ def delete_material(material_id):
     return redirect(url_for('index'))
 
 
-#Add Order
+# Add Order
 @app.route('/add_order', methods=['GET', 'POST'])
 @login_required
 def add_order():
@@ -200,6 +205,9 @@ def add_order():
         material_id = request.form['material_id']
         quantity = int(request.form['quantity'])
 
+        # লগইন ইউজারের ID session থেকে নিও
+        user_id = session.get('id')
+
         # Material
         cursor.execute("SELECT price, discount FROM materials WHERE material_id = %s", (material_id,))
         material = cursor.fetchone()
@@ -210,17 +218,18 @@ def add_order():
             price_after_discount = price - (price * discount / 100)
             total_price = quantity * price_after_discount
 
-            # Order insert
+            # Order insert with user_id
             cursor.execute("""
-                INSERT INTO orders (customer_id, customer_name, material_id, quantity, total_price, order_date)
-                VALUES (%s, %s, %s, %s, %s, NOW())
-            """, (customer_id, customer_name, material_id, quantity, total_price))
+                INSERT INTO orders 
+                (customer_id, customer_name, material_id, quantity, total_price, order_date, user_id)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+            """, (customer_id, customer_name, material_id, quantity, total_price, user_id))
 
             conn.commit()
 
         cursor.close()
         conn.close()
-        return redirect('/')
+        return redirect('/my_orders')  # redirect to user's order page
     
     else:
         cursor.execute("SELECT * FROM materials")
@@ -230,9 +239,33 @@ def add_order():
         return render_template('add_order.html', materials=materials)
 
 
+
+@app.route('/my_orders')
+@login_required
+def my_orders():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    user_id = session.get('id')  # লগইন ইউজারের আইডি
+
+    cursor.execute("""
+        SELECT orders.*, materials.name AS material_name
+        FROM orders
+        JOIN materials ON orders.material_id = materials.material_id
+        WHERE orders.user_id = %s
+        ORDER BY orders.order_date DESC
+    """, (user_id,))
+
+    orders = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template('my_orders.html', orders=orders)
+
+
 #View all Order
 @app.route('/all_orders')
-@login_required
+@admin_required
 def all_orders():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
