@@ -62,13 +62,18 @@
 <div class="main-header">
     <h1>📚 Study Materials Management System</h1>
     <div class="mt-3">
-        <a href="/add_material" class="btn btn-light btn-custom">➕ Add Material</a>
-        <a href="/add_order" class="btn btn-dark btn-custom">🛒 Add Order</a>
-        <a href="/all_orders" class="btn btn-success btn-custom">📄 View All Orders</a>
+        {% if session.username %}
+            <a href="/add_material" class="btn btn-light btn-custom">➕ Add Material</a>
+            <a href="/add_order" class="btn btn-dark btn-custom">🛒 Add Order</a>
+            <a href="/all_orders" class="btn btn-success btn-custom">📄 View All Orders</a>
+            <a href="/logout" class="btn btn-outline-light btn-custom">🚪 Logout</a>
+            <p class="text-white">Welcome, {{ session.username }}</p>
+        {% else %}
+            <a href="/login" class="btn btn-outline-light btn-custom">🔐 Login</a>
+            <a href="/register" class="btn btn-outline-light btn-custom">📝 Register</a>
+        {% endif %}
     </div>
-    <!-- <form method="POST" action="/delete_all_materials" onsubmit="return confirm('Are you sure you want to delete ALL materials?')">
-        <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete All Materials</button>
-    </form> -->
+
 </div>
 
 <!-- Materials Section -->
@@ -91,10 +96,12 @@
                             <span class="text-danger">Not Available</span>
                         {% endif %}
                     </p>
+                    {% if session.username %}
                     <div class="d-flex justify-content-between">
                         <a href="/update_material/{{ material.material_id }}" class="btn btn-sm btn-outline-primary">✏️ Edit</a>
                         <a href="/delete_material/{{ material.material_id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this material?')">🗑️ Delete</a>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -1,11 +1,15 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for,session,flash
 import mysql.connector
+from functools import wraps
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 load_dotenv()
 
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.secret_key = 'a3f5c1e2b7d643cfb2d8790caae210d7'
+
 
 # MySQL Connection Setup
 def get_db_connection():
@@ -17,6 +21,82 @@ def get_db_connection():
         database=os.environ.get("MYSQLDATABASE")
     )
     return connection
+
+# Auth decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            flash("Login required", "warning")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if user and check_password_hash(user['password'], password):
+            session['username'] = user['username']
+            flash('Login successful!', 'success')
+            return redirect('/')
+        else:
+            flash('Invalid username or password.', 'danger')
+            return redirect('/login')
+
+    return render_template('login.html')
+
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Check if username already exists
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            flash('Username already exists. Choose a different one.', 'danger')
+            return redirect('/register')
+
+        # Hash password
+        hashed_password = generate_password_hash(password)
+
+        # Insert new user
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        flash('Registration successful! Please login.', 'success')
+        return redirect('/login')
+
+    return render_template('register.html')
+
+
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    flash("Logged out successfully", "info")
+    return redirect(url_for('login'))
 
 
 @app.route('/')
@@ -32,8 +112,10 @@ def index():
 
     return render_template('index.html', materials=materials)
 
+
 #Add Material
 @app.route('/add_material', methods=['GET', 'POST'])
+@login_required
 def add_material():
     if request.method == 'POST':
         name = request.form['name']
@@ -57,8 +139,10 @@ def add_material():
 
     return render_template('add_material.html')
 
+
 #Update Material
 @app.route('/update_material/<int:material_id>', methods=['GET', 'POST'])
+@login_required
 def update_material(material_id):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -88,8 +172,10 @@ def update_material(material_id):
     connection.close()
     return render_template('update_material.html', material=material)
 
+
 #Delete Material
 @app.route('/delete_material/<int:material_id>')
+@login_required
 def delete_material(material_id):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -100,8 +186,10 @@ def delete_material(material_id):
 
     return redirect(url_for('index'))
 
+
 #Add Order
 @app.route('/add_order', methods=['GET', 'POST'])
+@login_required
 def add_order():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -141,8 +229,10 @@ def add_order():
         conn.close()
         return render_template('add_order.html', materials=materials)
 
+
 #View all Order
 @app.route('/all_orders')
+@login_required
 def all_orders():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -159,6 +249,7 @@ def all_orders():
 
 #Update order
 @app.route('/update_order/<int:order_id>', methods=['GET', 'POST'])
+@login_required
 def update_order(order_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -196,8 +287,10 @@ def update_order(order_id):
     conn.close()
     return render_template('update_order.html', order=order, materials=materials)
 
+
 #Delete order
 @app.route('/delete_order/<int:order_id>', methods=['GET'])
+@login_required
 def delete_order(order_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -209,8 +302,10 @@ def delete_order(order_id):
     conn.close()
     return redirect('/all_orders')
 
+
 #Delete all Material
 @app.route('/delete_all_materials', methods=['POST'])
+@login_required
 def delete_all_materials():
     conn = get_db_connection()
     cursor = conn.cursor()
