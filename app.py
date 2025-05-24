@@ -78,7 +78,8 @@ def register():
         password = request.form["password"]
         hashed_password = generate_password_hash(password)
 
-        cursor = db.cursor(dictionary=True)
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         existing_user = cursor.fetchone()
 
@@ -88,7 +89,7 @@ def register():
 
         cursor.execute("INSERT INTO users (username, password, is_admin) VALUES (%s, %s, %s)", 
                        (username, hashed_password, False))
-        db.commit()
+        conn.commit()
         flash("Registration successful. Please login.", "success")
         return redirect("/login")
 
