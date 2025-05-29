@@ -21,7 +21,6 @@ A web-based application to manage, organize, and share academic materials effici
 - 📝 **Add, Update, and Delete** study materials
 - 📦 **Order and Item Management** (material name, unit, price)
 - 📊 **Material Status Tracking** (availability, total count)
-- 🔍 **Search and Filter** (by category or name)
 - 🧾 **Track Orders** (date, customer name, total cost)
 - 🔐 Authentication-protected routes
 
